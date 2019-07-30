@@ -21,8 +21,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "fc_usb.h"
 #include <algorithm>
+#include "fc_usb.h"
 
 // USB protocol definitions
 
