@@ -22,7 +22,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-static uint32_t FCP_FN(updatePixel)(uint32_t icPrev, uint32_t icNext,
+static inline uint32_t FCP_FN(updatePixel)(uint32_t icPrev, uint32_t icNext,
     const uint8_t *pixelPrev, const uint8_t *pixelNext, residual_t *pResidual)
 {
     /*
@@ -79,9 +79,9 @@ static uint32_t FCP_FN(updatePixel)(uint32_t icPrev, uint32_t icNext,
 
 #if FCP_DITHERING
     // Compute the error, after expanding the 8-bit value back to 16-bit.
-    pResidual[0] = iR - (r8 * 257);
-    pResidual[1] = iG - (g8 * 257);
-    pResidual[2] = iB - (b8 * 257);
+    pResidual[0] = __SSAT(iR - (r8 * 257), 8);
+    pResidual[1] = __SSAT(iG - (g8 * 257), 8);
+    pResidual[2] = __SSAT(iB - (b8 * 257), 8);   
 #endif
 
     // Pack the result, in GRB order.

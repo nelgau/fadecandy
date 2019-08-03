@@ -4,7 +4,7 @@
 
 #include "WProgram.h"
 
-extern "C" void getPixel(uint32_t strip, uint32_t index, uint8_t *out);
+extern "C" void drawChunk(uint8_t *pChunk, uint32_t startIndex, uint32_t length);
 
 void bitband_init(void);
 void bitband_show(void);

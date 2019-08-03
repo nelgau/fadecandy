@@ -2,29 +2,25 @@
 #include "bitband_ws2812b.h"
 #include "WProgram.h"
 
-#define WS2811_TIMING_T0H  60
-#define WS2811_TIMING_T1H  176
+#define LEDS_PER_STRIP      112
+
+#define WS2811_TIMING_T0H   60
+#define WS2811_TIMING_T1H   176
 
 const uint8_t ones = 0xFF;
 volatile uint8_t update_in_progress = 0;
 uint32_t update_completed_at = 0;
 
-#define CHUNK_SIZE    1
+#define CHUNK_SIZE    16
 #define BUFFER_SIZE   (2 * 24 * CHUNK_SIZE)
 
 // Framebuffer - buffer for two chunks of LEDs
-uint8_t dmaBitBuffer[BUFFER_SIZE];
-
+DMAMEM uint8_t dmaBitBuffer[BUFFER_SIZE];
 
 uint32_t ledsPerStrip;
 uint32_t chunksPerStrip;
+uint32_t valuesPerStrip;
 volatile uint32_t currentChunk;
-
-
-
-
-void ws2812b_set_pixel(uint8_t *pChunk, uint8_t index, uint8_t strip, uint8_t red, uint8_t green, uint8_t blue);
-
 
 void gpio_init(void)
 {
@@ -44,7 +40,8 @@ uint32_t timer_period;
 
 void timer_init(void)
 {
-  uint32_t frequency = 760000;
+  //uint32_t frequency = 760000; // this works well
+  uint32_t frequency = 700000;
 
   // FROM STM32
   // This computation of pulse length should work ok,
@@ -91,10 +88,10 @@ void dma_init(void)
   DMA_TCD1_SLAST = 0;
   DMA_TCD1_DADDR = &GPIOD_PSOR;
   DMA_TCD1_DOFF = 0;
-  DMA_TCD1_CITER_ELINKNO = 24 * ledsPerStrip;
+  DMA_TCD1_CITER_ELINKNO = 24 * valuesPerStrip;
   DMA_TCD1_DLASTSGA = 0;
   DMA_TCD1_CSR = DMA_TCD_CSR_DREQ;
-  DMA_TCD1_BITER_ELINKNO = 24 * ledsPerStrip;
+  DMA_TCD1_BITER_ELINKNO = 24 * valuesPerStrip;
 
   // DMA channel #2 writes the pixel data at 20% of the cycle
   DMA_TCD2_SADDR = &dmaBitBuffer;
@@ -117,10 +114,10 @@ void dma_init(void)
   DMA_TCD3_SLAST = 0;
   DMA_TCD3_DADDR = &GPIOD_PCOR;
   DMA_TCD3_DOFF = 0;
-  DMA_TCD3_CITER_ELINKNO = 24 * ledsPerStrip;
+  DMA_TCD3_CITER_ELINKNO = 24 * valuesPerStrip;
   DMA_TCD3_DLASTSGA = 0;
   DMA_TCD3_CSR = DMA_TCD_CSR_DREQ | DMA_TCD_CSR_INTMAJOR;
-  DMA_TCD3_BITER_ELINKNO = 24 * ledsPerStrip;
+  DMA_TCD3_BITER_ELINKNO = 24 * valuesPerStrip;
 
   // route the edge detect interrupts to trigger the 3 channels
   DMAMUX0_CHCFG1 = 0;
@@ -135,51 +132,43 @@ void dma_init(void)
   NVIC_ENABLE_IRQ(IRQ_DMA_CH3);  
 }
 
-
-
-volatile int counter = 0;
-uint8_t outpx[3];
-
-static inline void loadChunkPixels(uint8_t *pChunk, uint32_t chunkLowIndex, uint32_t length) {
-  for (uint32_t i = 0, index = chunkLowIndex; i < length; i++, index++) {
-    for (uint32_t strip = 0; strip < 8; strip++) {      
-      getPixel(strip, index, outpx);
-      ws2812b_set_pixel(pChunk, i, strip, outpx[0], outpx[1], outpx[2]);
-    }
-  }
+static inline void loadChunkPixels(uint8_t *pChunk, uint32_t startIndex, uint32_t endIndex)
+{
+  drawChunk(pChunk, startIndex, endIndex - startIndex);
 }
 
-static inline void loadChunkBlack(uint8_t *pChunk, uint32_t chunkLowIndex, uint32_t startIndex, uint32_t endIndex) {  
+static inline void loadChunkBlack(uint8_t *pChunk, uint32_t chunkLowIndex, uint32_t startIndex, uint32_t endIndex)
+{  
   memset(pChunk + (startIndex - chunkLowIndex) * 24, 0, (endIndex - startIndex) * 24);
 }
 
 static inline void loadFramebufferData(uint32_t chunk)
 {
-  uint32_t chunkLowIndex = chunk * CHUNK_SIZE;
-  uint32_t chunkHighIndex = chunkLowIndex + CHUNK_SIZE;
-
   uint32_t row = chunk & 1;
   uint8_t *pChunk = &dmaBitBuffer[24 * CHUNK_SIZE * row];  
 
+  uint32_t chunkLowIndex = chunk * CHUNK_SIZE;
+  uint32_t chunkHighIndex = chunkLowIndex + CHUNK_SIZE;
+
   if (chunkHighIndex <= ledsPerStrip) {
     // Every index has pixel data
-    loadChunkPixels(pChunk, chunkLowIndex, CHUNK_SIZE);
+    loadChunkPixels(pChunk, chunkLowIndex, chunkHighIndex);
   }
-  else if (chunkLowIndex < ledsPerStrip) {
-    // Some indices have pixel data
-    loadChunkPixels(pChunk, chunkLowIndex, ledsPerStrip - chunkLowIndex);
-    loadChunkBlack(pChunk, chunkLowIndex, ledsPerStrip, chunkHighIndex);
-  }
-  else {
+  else if (ledsPerStrip <= chunkLowIndex) {
     // All indicies are beyond pixel data
     loadChunkBlack(pChunk, chunkLowIndex, chunkLowIndex, chunkHighIndex);
+  }
+  else {
+    // Some indices have pixel data
+    loadChunkPixels(pChunk, chunkLowIndex, ledsPerStrip);
+    loadChunkBlack(pChunk, chunkLowIndex, ledsPerStrip, chunkHighIndex);
   }
 }
 
 static bool isLoading = false;
 
 static inline bool tryEnterLoadingState() {
-  bool didEnterLoadingState;
+  bool didEnterLoadingState = false;
 
   noInterrupts();
   if (!isLoading) {
@@ -201,9 +190,6 @@ static inline void dma_finish_transfer(void)
 {
   DMA_TCD2_CSR &= ~DMA_TCD_CSR_MAJORELINK; 
   DMA_TCD2_CSR |= DMA_TCD_CSR_DREQ;
-
-  digitalWriteFast(LED_BUILTIN, counter % 200 < 100);
-  counter++;
 }
 
 void dma_ch2_isr(void)
@@ -213,7 +199,7 @@ void dma_ch2_isr(void)
 
   currentChunk++;
 
-  if (currentChunk >= chunksPerStrip) {
+  if (currentChunk + 1 >= chunksPerStrip) {
     dma_finish_transfer();
   }
 
@@ -231,8 +217,6 @@ void dma_ch3_isr(void)
   update_completed_at = micros();
   update_in_progress = 0;
 }
-
-
 
 void bitband_sendbuf(void)
 {
@@ -275,119 +259,13 @@ void bitband_sendbuf(void)
   interrupts();
 }
 
-
-#define RAM_BASE 0x20000000
-#define RAM_BB_BASE 0x22000000
-#define BITBAND_SRAM(address, bit) ( (volatile uint32_t *) (RAM_BB_BASE + (((uint32_t)address) - RAM_BASE) * 32 + (bit) * 4))
-
-
-void ws2812b_set_pixel(uint8_t *pChunk, uint8_t index, uint8_t strip, uint8_t red, uint8_t green, uint8_t blue)
-{
-  // Apply gamma
-  //red = gammaTable[red];
-  //green = gammaTable[green];
-  //blue = gammaTable[blue];
-
-  uint32_t invRed = red;
-  uint32_t invGreen = green;
-  uint32_t invBlue = blue;
-
-
-  // Bitband optimizations with pure increments, 5us interrupts
-  volatile uint32_t *bitBand = BITBAND_SRAM(&pChunk[index * 24], strip);
-
-  // BLUE
-  *bitBand = (invBlue >> 7);
-  bitBand+=8;
-
-  *bitBand = (invBlue >> 6);
-  bitBand+=8;
-
-  *bitBand = (invBlue >> 5);
-  bitBand+=8;
-
-  *bitBand = (invBlue >> 4);
-  bitBand+=8;
-
-  *bitBand = (invBlue >> 3);
-  bitBand+=8;
-
-  *bitBand = (invBlue >> 2);
-  bitBand+=8;
-
-  *bitBand = (invBlue >> 1);
-  bitBand+=8;
-
-  *bitBand = (invBlue >> 0);
-  bitBand+=8;
-
-  // RED
-  *bitBand = (invRed >> 7);
-  bitBand+=8;
-
-  *bitBand = (invRed >> 6);
-  bitBand+=8;
-
-  *bitBand = (invRed >> 5);
-  bitBand+=8;
-
-  *bitBand = (invRed >> 4);
-  bitBand+=8;
-
-  *bitBand = (invRed >> 3);
-  bitBand+=8;
-
-  *bitBand = (invRed >> 2);
-  bitBand+=8;
-
-  *bitBand = (invRed >> 1);
-  bitBand+=8;
-
-  *bitBand = (invRed >> 0);
-  bitBand+=8;
-
-  // GREEN
-  *bitBand = (invGreen >> 7);
-  bitBand+=8;
-
-  *bitBand = (invGreen >> 6);
-  bitBand+=8;
-
-  *bitBand = (invGreen >> 5);
-  bitBand+=8;
-
-  *bitBand = (invGreen >> 4);
-  bitBand+=8;
-
-  *bitBand = (invGreen >> 3);
-  bitBand+=8;
-
-  *bitBand = (invGreen >> 2);
-  bitBand+=8;
-
-  *bitBand = (invGreen >> 1);
-  bitBand+=8;
-
-  *bitBand = (invGreen >> 0);
-  bitBand+=8;
-}
-
-
-
-
-
-
-
-
-
-
-
 void bitband_init(void)
 {
   digitalWriteFast(LED_BUILTIN, 0);
 
-  ledsPerStrip = 128;
+  ledsPerStrip = LEDS_PER_STRIP;
   chunksPerStrip = (ledsPerStrip + CHUNK_SIZE - 1) / CHUNK_SIZE;
+  valuesPerStrip = chunksPerStrip * CHUNK_SIZE;
 
   gpio_init();
   dma_init();
@@ -413,6 +291,6 @@ bool bitband_busy(void)
 {
     if (update_in_progress) return true;
     // busy for 300 us after dma for WS2811 reset
-    if (micros() - update_completed_at < 300) return true;
+    if (micros() - update_completed_at < 600) return true;
     return false;
 }

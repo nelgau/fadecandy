@@ -35,13 +35,8 @@
 static fcBuffers buffers;
 fcLinearLUT fcBuffers::lutCurrent;
 
-/*
- * Residuals for temporal dithering. Usually 8 bits is enough, but
- * there are edge cases when it isn't, and we don't have the spare CPU cycles
- * to saturate values before storing. So, 16-bit it is.
- */
-typedef int16_t residual_t;
-//static residual_t residual[CHANNELS_TOTAL];
+typedef int8_t residual_t;
+static residual_t residual[CHANNELS_TOTAL];
 
 // Reserved RAM area for signalling entry to bootloader
 extern uint32_t boot_token;
@@ -51,49 +46,12 @@ extern uint32_t boot_token;
  * We compile this multiple times, with different config flags.
  */
 
-/*
-
-#define FCP_INTERPOLATION   0
-#define FCP_DITHERING       0
-#define FCP_FN(name)        name##_I0_D0
-#include "fc_pixel_lut.cpp"
-#include "fc_pixel.cpp"
-//#include "fc_draw.cpp"
-#undef FCP_INTERPOLATION
-#undef FCP_DITHERING
-#undef FCP_FN
-
-#define FCP_INTERPOLATION   1
-#define FCP_DITHERING       0
-#define FCP_FN(name)        name##_I1_D0
-#include "fc_pixel_lut.cpp"
-#include "fc_pixel.cpp"
-//#include "fc_draw.cpp"
-#undef FCP_INTERPOLATION
-#undef FCP_DITHERING
-#undef FCP_FN
-
-#define FCP_INTERPOLATION   0
-#define FCP_DITHERING       1
-#define FCP_FN(name)        name##_I0_D1
-#include "fc_pixel_lut.cpp"
-#include "fc_pixel.cpp"
-//#include "fc_draw.cpp"
-#undef FCP_INTERPOLATION
-#undef FCP_DITHERING
-#undef FCP_FN
-
 #define FCP_INTERPOLATION   1
 #define FCP_DITHERING       1
-#define FCP_FN(name)        name##_I1_D1
+#define FCP_FN(name)        name
 #include "fc_pixel_lut.cpp"
 #include "fc_pixel.cpp"
-//#include "fc_draw.cpp"
-#undef FCP_INTERPOLATION
-#undef FCP_DITHERING
-#undef FCP_FN
-
-*/
+#include "fc_draw.cpp"
 
 static inline uint32_t calculateInterpCoefficient()
 {
@@ -143,48 +101,12 @@ extern "C" int usb_rx_handler(usb_packet_t *packet)
     return buffers.handleUSB(packet);
 }
 
-uint32_t icPrev, icNext;
+uint32_t interpCoefficient;
 
-
-/*
-struct FCFBAccessor : FramebufferAccessor {
-    virtual rgb_t get(uint32_t strip, uint32_t index) {
-        rgb_t c;
-        //const uint8_t *buf = buffers.fbNext->pixel(index + LEDS_PER_STRIP * strip);
-        //c.r = buf[0];
-        //c.g = buf[1];
-        //c.b = buf[2];
-
-        c.r = 0;
-        c.g = 255;
-        c.b = 0;
-
-        return c;
-    }
-};
-*/
-
-extern "C" void getPixel(uint32_t strip, uint32_t index, uint8_t *out) {
-    index &= 0x3F;
-
-    const uint8_t *buf = buffers.fbNext->pixel((index % 64) + LEDS_PER_STRIP * strip);
-
-    out[0] = buf[0];
-    out[1] = buf[1];
-    out[2] = buf[2];
-
-/*
-    uint32_t p0 = updatePixel_I1_D1(icPrev, icNext,
-            buffers.fbPrev->pixel(index + LEDS_PER_STRIP * strip),
-            buffers.fbNext->pixel(index + LEDS_PER_STRIP * strip),
-            residual + 3 * (index + LEDS_PER_STRIP * strip));
-
-    out[0] = (p0 >> 8) & 0xFF;
-    out[1] = (p0 >> 16) & 0xFF;
-    out[2] = p0 & 0xFF;
-    */
+extern "C" void drawChunk(uint8_t *pChunk, uint32_t startIndex, uint32_t length)
+{
+    updateDrawBuffer(pChunk, startIndex, startIndex + length, interpCoefficient);
 }
-
 
 extern "C" int main()
 {    
@@ -201,9 +123,7 @@ extern "C" int main()
     while (usb_dfu_state == DFU_appIDLE) {
         watchdog_refresh();
 
-        uint32_t interpCoefficient = calculateInterpCoefficient();
-        icPrev = 257 * (0x10000 - interpCoefficient);
-        icNext = 257 * interpCoefficient;
+        interpCoefficient = calculateInterpCoefficient();
 
 /*
 
