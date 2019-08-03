@@ -31,8 +31,15 @@
 #define LEDS_TOTAL              (LEDS_PER_STRIP * 8)
 #define CHANNELS_TOTAL          (LEDS_TOTAL * 3)
 
+#define HALFSIZE_LUT            1
+
+#if HALFSIZE_LUT
+#define LUT_CH_SIZE             129
+#define LUT_TOTAL_SIZE          (LUT_CH_SIZE * 3)
+#else
 #define LUT_CH_SIZE             257
 #define LUT_TOTAL_SIZE          (LUT_CH_SIZE * 3)
+#endif
 
 // USB packet layout
 #define PIXELS_PER_PACKET       21

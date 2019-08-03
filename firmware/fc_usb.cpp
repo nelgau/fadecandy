@@ -137,7 +137,16 @@ void fcBuffers::finalizeLUT()
      * Note the right shift by 1. See lutInterpolate() for an explanation.
      */
 
+#if HALFSIZE_LUT
+    // Note: This reduces the cardinality of the LUT by half.
+    for (unsigned ch = 0, j = 0, k = 0; ch < 3; ++ch, --k) {
+        for (unsigned i = 0; i < 129; ++i, ++j, k += 2) {
+            lutCurrent.entries[j] = lutNew.entry(k) >> 1;
+        }
+    }
+#else
     for (unsigned i = 0; i < LUT_TOTAL_SIZE; ++i) {
         lutCurrent.entries[i] = lutNew.entry(i) >> 1;
     }
+#endif
 }

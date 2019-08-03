@@ -27,6 +27,10 @@ ALWAYS_INLINE static inline
 uint32_t FCP_FN(lutInterpolate)(const uint16_t *lut, uint32_t arg)
 {
     /*
+     * NOTE: This has been modified to reduce the cardinality of the LUT by half.
+     */
+
+    /*
      * Using our color LUT for the indicated channel, convert the
      * 16-bit intensity "arg" in our input colorspace to a corresponding
      * 16-bit intensity in the device colorspace.
@@ -67,12 +71,16 @@ uint32_t FCP_FN(lutInterpolate)(const uint16_t *lut, uint32_t arg)
 
 #if FCP_INTERPOLATION
 
-    uint32_t index = arg >> 8;          // Range [0, 0xFF]
+#if HALFSIZE_LUT
+    uint32_t index = arg >> 9;              // Range [0, 0x7F]
+    unsigned alpha = (arg >> 1) & 0xFF;     // Range [0, 0xFF]
+#else
+    uint32_t index = arg >> 8;              // Range [0, 0xFF]
+    unsigned alpha = arg & 0xFF;            // Range [0, 0xFF]
+#endif
 
     // Load lut[index] into low halfword, lut[index+1] into high halfword.
     uint32_t pair = *(const uint32_t*)(lut + index);
-
-    unsigned alpha = arg & 0xFF;        // Range [0, 0xFF]
 
     // Reversed halfword order
     uint32_t pairAlpha = (0x01000000 + alpha - (alpha << 16));
@@ -81,6 +89,12 @@ uint32_t FCP_FN(lutInterpolate)(const uint16_t *lut, uint32_t arg)
 
 #else
     // Simpler non-interpolated version
+
+#if HALFSIZE_LUT
+    return lut[arg >> 9] << 1;
+#else
     return lut[arg >> 8] << 1;
+#endif
+
 #endif
 }
