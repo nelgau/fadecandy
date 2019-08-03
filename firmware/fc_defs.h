@@ -47,7 +47,7 @@
 #define PACKETS_PER_FRAME       25
 #define PACKETS_PER_LUT         25
 
-#define NUM_USB_BUFFERS         (3 * 41 + 25 + 4)   // Three full frames (3*43), one LUT buffer (25), a little extra (3)
+#define NUM_USB_BUFFERS         (3 * 43 + 25 + 4)   // Three full frames (3*43), one LUT buffer (25), a little extra (3)
 
 #define VENDOR_ID               0x1d50    // OpenMoko
 #define PRODUCT_ID              0x607a    // Assigned to Fadecandy project
