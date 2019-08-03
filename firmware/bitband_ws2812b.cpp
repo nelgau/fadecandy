@@ -12,15 +12,18 @@ uint32_t update_completed_at = 0;
 #define CHUNK_SIZE    1
 #define BUFFER_SIZE   (2 * 24 * CHUNK_SIZE)
 
-// Framebuffer - buffer for two chunks of LEDS
+// Framebuffer - buffer for two chunks of LEDs
 uint8_t dmaBitBuffer[BUFFER_SIZE];
 
-volatile uint32_t currentIndex;
+
 uint32_t ledsPerStrip;
+uint32_t chunksPerStrip;
+volatile uint32_t currentChunk;
 
 
 
-void ws2812b_set_pixel(uint8_t row, uint16_t strip, uint8_t red, uint8_t green, uint8_t blue);
+
+void ws2812b_set_pixel(uint8_t *pChunk, uint8_t index, uint8_t strip, uint8_t red, uint8_t green, uint8_t blue);
 
 
 void gpio_init(void)
@@ -137,27 +140,39 @@ void dma_init(void)
 volatile int counter = 0;
 uint8_t outpx[3];
 
-static inline void loadPixel(uint32_t index) {
-  uint32_t row = index & 1;
-  for (uint32_t strip = 0; strip < 8; strip++) {      
-    getPixel(strip, index, outpx);
-    ws2812b_set_pixel(row, strip, outpx[0], outpx[1], outpx[2]);
+static inline void loadChunkPixels(uint8_t *pChunk, uint32_t chunkLowIndex, uint32_t length) {
+  for (uint32_t i = 0, index = chunkLowIndex; i < length; i++, index++) {
+    for (uint32_t strip = 0; strip < 8; strip++) {      
+      getPixel(strip, index, outpx);
+      ws2812b_set_pixel(pChunk, i, strip, outpx[0], outpx[1], outpx[2]);
+    }
   }
 }
 
-static inline void loadBlack(uint32_t index) {
-  uint32_t row = index & 1;
-  for (uint32_t i = 0; i < 24; i++) {
-    dmaBitBuffer[24 * row + i] = 0;
-  }
+static inline void loadChunkBlack(uint8_t *pChunk, uint32_t chunkLowIndex, uint32_t startIndex, uint32_t endIndex) {  
+  memset(pChunk + (startIndex - chunkLowIndex) * 24, 0, (endIndex - startIndex) * 24);
 }
 
-static inline void loadFramebufferData(uint32_t index)
+static inline void loadFramebufferData(uint32_t chunk)
 {
-  if (index < ledsPerStrip) {
-    loadPixel(index);
-  } else {
-    loadBlack(index);
+  uint32_t chunkLowIndex = chunk * CHUNK_SIZE;
+  uint32_t chunkHighIndex = chunkLowIndex + CHUNK_SIZE;
+
+  uint32_t row = chunk & 1;
+  uint8_t *pChunk = &dmaBitBuffer[24 * CHUNK_SIZE * row];  
+
+  if (chunkHighIndex <= ledsPerStrip) {
+    // Every index has pixel data
+    loadChunkPixels(pChunk, chunkLowIndex, CHUNK_SIZE);
+  }
+  else if (chunkLowIndex < ledsPerStrip) {
+    // Some indices have pixel data
+    loadChunkPixels(pChunk, chunkLowIndex, ledsPerStrip - chunkLowIndex);
+    loadChunkBlack(pChunk, chunkLowIndex, ledsPerStrip, chunkHighIndex);
+  }
+  else {
+    // All indicies are beyond pixel data
+    loadChunkBlack(pChunk, chunkLowIndex, chunkLowIndex, chunkHighIndex);
   }
 }
 
@@ -196,14 +211,14 @@ void dma_ch2_isr(void)
   // Clear interrupt
   DMA_CINT = 2;
 
-  currentIndex++;
+  currentChunk++;
 
-  if (currentIndex >= ledsPerStrip) {
+  if (currentChunk >= chunksPerStrip) {
     dma_finish_transfer();
   }
 
   if (tryEnterLoadingState()) {
-    loadFramebufferData(currentIndex + 1);
+    loadFramebufferData(currentChunk + 1);
     leaveLoadingState();
   }
 }
@@ -232,7 +247,7 @@ void bitband_sendbuf(void)
   FTM1_SC = 0;            // stop FTM1 timer (hopefully before it rolls over)
   FTM1_CNT = 0;
 
-  currentIndex = 0;
+  currentChunk = 0;
   update_in_progress = 1;
 
   PORTB_ISFR = (1<<0);    // clear any prior rising edge
@@ -266,7 +281,7 @@ void bitband_sendbuf(void)
 #define BITBAND_SRAM(address, bit) ( (volatile uint32_t *) (RAM_BB_BASE + (((uint32_t)address) - RAM_BASE) * 32 + (bit) * 4))
 
 
-void ws2812b_set_pixel(uint8_t row, uint16_t strip, uint8_t red, uint8_t green, uint8_t blue)
+void ws2812b_set_pixel(uint8_t *pChunk, uint8_t index, uint8_t strip, uint8_t red, uint8_t green, uint8_t blue)
 {
   // Apply gamma
   //red = gammaTable[red];
@@ -278,40 +293,11 @@ void ws2812b_set_pixel(uint8_t row, uint16_t strip, uint8_t red, uint8_t green, 
   uint32_t invBlue = blue;
 
 
-#if 0
-
-  uint32_t calcRow = (row*24);
-
-  uint8_t i;
-  uint32_t calcClearRow = ~(0x01<<strip);
-  for (i = 0; i < 8; i++)
-  {
-    // clear the data for pixel
-
-    dmaBitBuffer[(calcRow+i)] &= calcClearRow;
-    dmaBitBuffer[(calcRow+8+i)] &= calcClearRow;
-    dmaBitBuffer[(calcRow+16+i)] &= calcClearRow;
-
-    // write new data for pixel
-
-    // WS2812?
-    //dmaBitBuffer[(calcRow+i)] |= (((((invGreen)<<i) & 0x80)>>7)<<strip);
-    //dmaBitBuffer[(calcRow+8+i)] |= (((((invRed)<<i) & 0x80)>>7)<<strip);
-    //dmaBitBuffer[(calcRow+16+i)] |= (((((invBlue)<<i) & 0x80)>>7)<<strip);
-
-    // WS2811
-    dmaBitBuffer[(calcRow+i)] |= (((((invBlue)<<i) & 0x80)>>7)<<strip);
-    dmaBitBuffer[(calcRow+8+i)] |= (((((invRed)<<i) & 0x80)>>7)<<strip);
-    dmaBitBuffer[(calcRow+16+i)] |= (((((invGreen)<<i) & 0x80)>>7)<<strip);
-  }
-
-#else
-
   // Bitband optimizations with pure increments, 5us interrupts
-  volatile uint32_t *bitBand = BITBAND_SRAM(&dmaBitBuffer[row * 24], strip);
+  volatile uint32_t *bitBand = BITBAND_SRAM(&pChunk[index * 24], strip);
 
   // BLUE
-  *bitBand =  (invBlue >> 7);
+  *bitBand = (invBlue >> 7);
   bitBand+=8;
 
   *bitBand = (invBlue >> 6);
@@ -336,7 +322,7 @@ void ws2812b_set_pixel(uint8_t row, uint16_t strip, uint8_t red, uint8_t green, 
   bitBand+=8;
 
   // RED
-  *bitBand =  (invRed >> 7);
+  *bitBand = (invRed >> 7);
   bitBand+=8;
 
   *bitBand = (invRed >> 6);
@@ -360,8 +346,8 @@ void ws2812b_set_pixel(uint8_t row, uint16_t strip, uint8_t red, uint8_t green, 
   *bitBand = (invRed >> 0);
   bitBand+=8;
 
-// GREEN
-  *bitBand =  (invGreen >> 7);
+  // GREEN
+  *bitBand = (invGreen >> 7);
   bitBand+=8;
 
   *bitBand = (invGreen >> 6);
@@ -384,9 +370,6 @@ void ws2812b_set_pixel(uint8_t row, uint16_t strip, uint8_t red, uint8_t green, 
 
   *bitBand = (invGreen >> 0);
   bitBand+=8;
-
-#endif
-
 }
 
 
@@ -404,6 +387,7 @@ void bitband_init(void)
   digitalWriteFast(LED_BUILTIN, 0);
 
   ledsPerStrip = 128;
+  chunksPerStrip = (ledsPerStrip + CHUNK_SIZE - 1) / CHUNK_SIZE;
 
   gpio_init();
   dma_init();
