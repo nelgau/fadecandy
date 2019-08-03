@@ -66,7 +66,7 @@ def measureFrameRate():
     try:
         while (t2 - t1) < duration:
             # Keep the EP1 OUT pipe full-ish, so we measure it while the USB driver is busy
-            dev.write(1, data)
+            dev.write(1, data, timeout=5000)
 
             t2 = time.time()
             c2 = readCounter(0)
