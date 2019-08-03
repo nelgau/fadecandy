@@ -41,6 +41,7 @@ void fcBuffers::finalizeFrame()
     // Finalize any frames received during the course of this loop iteration,
     // and update the status LED.
 
+    /*
     if (flags & CFLAG_NO_ACTIVITY_LED) {
         // LED under manual control
         digitalWriteFast(LED_BUILTIN, flags & CFLAG_LED_CONTROL);
@@ -48,6 +49,8 @@ void fcBuffers::finalizeFrame()
         // Use the built-in LED as a USB activity indicator.
         digitalWriteFast(LED_BUILTIN, handledAnyPacketsThisFrame);
     }
+    */
+
     handledAnyPacketsThisFrame = false;
 
     if (pendingFinalizeFrame) {

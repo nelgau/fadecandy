@@ -33,14 +33,15 @@ C_FILES = \
 CPP_FILES = \
 	fadecandy.cpp \
 	fc_usb.cpp \
-	OctoWS2811z.cpp
+	OctoWS2811z.cpp \
+	bitband_ws2812b.cpp
 
 # Headers
 INCLUDES = -I.
 
 # CPPFLAGS = compiler options for C and C++
-CPPFLAGS = -Wall -Wno-sign-compare -Wno-strict-aliasing -g -Os -mcpu=cortex-m4 \
-	-mthumb -nostdlib -MMD -Werror $(OPTIONS) $(INCLUDES)
+CPPFLAGS = -Wall -Wno-sign-compare -Wno-strict-aliasing -g -O3 -mcpu=cortex-m4 \
+	-mthumb -MMD -Werror $(OPTIONS) $(INCLUDES)
 
 # compiler options for C++ only
 CXXFLAGS = -std=gnu++0x -felide-constructors -fno-exceptions -fno-rtti
@@ -52,7 +53,7 @@ CFLAGS =
 LDSCRIPT = fcb-app.ld
 
 # linker options
-LDFLAGS = -Os -Wl,--gc-sections -mcpu=cortex-m4 -mthumb -nostdlib -T$(LDSCRIPT)
+LDFLAGS = -O3 -Wl,--gc-sections -mcpu=cortex-m4 -mthumb -T$(LDSCRIPT)
 
 # additional libraries to link
 LIBS = -lm

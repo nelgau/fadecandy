@@ -15,7 +15,8 @@ if not dev:
     raise IOError("No Fadecandy interfaces found")
 dev.set_configuration()
 
-print "Serial number: %s" % usb.util.get_string(dev, 255, dev.iSerialNumber)
+serialNumber = usb.util.get_string(dev, dev.iSerialNumber)
+print(f"Serial number: {serialNumber}")
 
 def readCounter(index):
     return struct.unpack('<I', dev.ctrl_transfer(0xC0, 0x01, 0, index, 4, 1000))[0]
@@ -33,13 +34,13 @@ def initLUT():
         for row in range(257):
             value = min(0xFFFF, int((row / 256.0) * 0x10000))
             i = channel * 257 + row
-            packetNum = i / 31
-            packetIndex = i % 31
+            packetNum = int(i / 31)
+            packetIndex = int(i % 31)
             lut[packetNum*64 + 2 + packetIndex*2] = value & 0xFF
             lut[packetNum*64 + 3 + packetIndex*2] = value >> 8
     lutPackets = ''.join(map(chr, lut))
     dev.write(1, lutPackets)
-    print "LUT programmed"
+    print("LUT programmed")
 
 def dummyFrame(byte):
     buffer = ''
@@ -76,7 +77,7 @@ def measureFrameRate():
             mbps = kfps * megabitsPerFrame
 
             # Not sure how accurate this USB throughput is, the blocking write() is likely a problem.
-            sys.stderr.write("\r   %.2f FPS, %.2f KFPS, %.2f Mbps  " % (fps, kfps, mbps))
+            sys.stderr.write(f"\r   {fps:.2f} FPS, {kfps:.2f} KFPS, {mbps:.2f} Mbps  ")
 
     except KeyboardInterrupt:
         pass

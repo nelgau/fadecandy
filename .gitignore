@@ -30,3 +30,4 @@ obj/
 _ReSharper*/
 examples/csharp/.vs/restore.dg
 project.lock.json
+env/

@@ -165,12 +165,14 @@ void OctoWS2811z::begin(void)
     //pinMode(1, OUTPUT); // testing: oscilloscope trigger
 }
 
+/*
 void dma_ch3_isr(void)
 {
     DMA_CINT = 3;
     update_completed_at = micros();
     update_in_progress = 0;
 }
+*/
 
 int OctoWS2811z::busy(void)
 {
