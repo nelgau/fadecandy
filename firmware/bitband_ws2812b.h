@@ -8,6 +8,7 @@ extern "C" void drawChunk(uint8_t *pChunk, uint32_t startIndex, uint32_t length)
 
 void bitband_init(void);
 void bitband_show(void);
+void bitband_wait(void);
 bool bitband_busy(void);
 
 #endif

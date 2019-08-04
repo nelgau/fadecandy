@@ -9,8 +9,7 @@
 
 const uint8_t ones = 0xFF;
 volatile uint8_t update_in_progress = 0;
-uint32_t update_completed_at = 0;
-
+volatile uint32_t update_completed_at = 0;
 #define CHUNK_SIZE    16
 #define BUFFER_SIZE   (2 * 24 * CHUNK_SIZE)
 
@@ -285,6 +284,12 @@ void bitband_show(void)
   loadFramebufferData(1);
 
   bitband_sendbuf();
+}
+
+void bitband_wait(void)
+{
+  // wait for dma operations to complete
+  while (update_in_progress);
 }
 
 bool bitband_busy(void)

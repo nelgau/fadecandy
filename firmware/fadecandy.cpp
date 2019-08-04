@@ -150,7 +150,7 @@ extern "C" int main()
 */
 
         bitband_show();
-        while (bitband_busy());
+        bitband_wait();
 
         // We can switch to the next frame's buffer now.
         buffers.finalizeFrame();
