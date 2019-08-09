@@ -27,8 +27,7 @@
 // USB protocol definitions
 
 #define TYPE_BITS           0xC0
-#define FINAL_BIT           0x20
-#define INDEX_BITS          0x1F
+#define INDEX_BITS          0x2F
 
 #define TYPE_FRAMEBUFFER    0x00
 #define TYPE_LUT            0x40
@@ -41,7 +40,6 @@ void fcBuffers::finalizeFrame()
     // Finalize any frames received during the course of this loop iteration,
     // and update the status LED.
 
-    /*
     if (flags & CFLAG_NO_ACTIVITY_LED) {
         // LED under manual control
         digitalWriteFast(LED_BUILTIN, flags & CFLAG_LED_CONTROL);
@@ -49,7 +47,6 @@ void fcBuffers::finalizeFrame()
         // Use the built-in LED as a USB activity indicator.
         digitalWriteFast(LED_BUILTIN, handledAnyPacketsThisFrame);
     }
-    */
 
     handledAnyPacketsThisFrame = false;
 
@@ -72,12 +69,13 @@ bool fcBuffers::handleUSB(usb_packet_t *packet)
 {
     unsigned control = packet->buf[0];
     unsigned type = control & TYPE_BITS;
-    unsigned final = control & FINAL_BIT;
     unsigned index = control & INDEX_BITS;
+    unsigned final = false;
 
     switch (type) {
 
         case TYPE_FRAMEBUFFER:
+            final = index == PACKETS_PER_FRAME - 1;
 
             // Framebuffer updates are synchronized; if we're waiting to finalize fbNew,
             // don't accept any new packets until that buffer becomes available.
@@ -92,6 +90,8 @@ bool fcBuffers::handleUSB(usb_packet_t *packet)
             break;
 
         case TYPE_LUT:
+            final = index == PACKETS_PER_LUT - 1;
+
             // LUT accesses are not synchronized
             lutNew.store(index, packet);
 
