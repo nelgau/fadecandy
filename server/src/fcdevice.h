@@ -57,7 +57,7 @@ public:
 private:
     static const unsigned PIXELS_PER_PACKET = 21;
     static const unsigned LUT_ENTRIES_PER_PACKET = 31;
-    static const unsigned FRAMEBUFFER_PACKETS = 25;
+    static const unsigned FRAMEBUFFER_PACKETS = 43;
     static const unsigned LUT_PACKETS = 25;
     static const unsigned LUT_ENTRIES = 257;
     static const unsigned OUT_ENDPOINT = 1;

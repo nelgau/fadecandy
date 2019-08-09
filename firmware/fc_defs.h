@@ -44,7 +44,7 @@
 // USB packet layout
 #define PIXELS_PER_PACKET       21
 #define LUTENTRIES_PER_PACKET   31
-#define PACKETS_PER_FRAME       25
+#define PACKETS_PER_FRAME       43
 #define PACKETS_PER_LUT         25
 
 #define NUM_USB_BUFFERS         (3 * 43 + 25 + 4)   // Three full frames (3*43), one LUT buffer (25), a little extra (3)
