@@ -71,14 +71,12 @@ FCDevice::FCDevice(libusb_device *device, bool verbose)
     for (unsigned i = 0; i < FRAMEBUFFER_PACKETS; ++i) {
         mFramebuffer[i].control = TYPE_FRAMEBUFFER | i;
     }
-    mFramebuffer[FRAMEBUFFER_PACKETS - 1].control |= FINAL;
 
     // Color LUT headers
     memset(mColorLUT, 0, sizeof mColorLUT);
     for (unsigned i = 0; i < LUT_PACKETS; ++i) {
         mColorLUT[i].control = TYPE_LUT | i;
     }
-    mColorLUT[LUT_PACKETS - 1].control |= FINAL;
 }
 
 FCDevice::~FCDevice()

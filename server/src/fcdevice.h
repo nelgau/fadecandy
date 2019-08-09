@@ -66,7 +66,6 @@ private:
     static const uint8_t TYPE_FRAMEBUFFER = 0x00;
     static const uint8_t TYPE_LUT = 0x40;
     static const uint8_t TYPE_CONFIG = 0x80;
-    static const uint8_t FINAL = 0x20;
 
     static const uint8_t CFLAG_NO_DITHERING     = (1 << 0);
     static const uint8_t CFLAG_NO_INTERPOLATION = (1 << 1);

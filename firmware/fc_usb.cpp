@@ -27,7 +27,7 @@
 // USB protocol definitions
 
 #define TYPE_BITS           0xC0
-#define INDEX_BITS          0x2F
+#define INDEX_BITS          0x3F
 
 #define TYPE_FRAMEBUFFER    0x00
 #define TYPE_LUT            0x40
@@ -39,7 +39,6 @@ void fcBuffers::finalizeFrame()
     // Called in main loop context.
     // Finalize any frames received during the course of this loop iteration,
     // and update the status LED.
-
     if (flags & CFLAG_NO_ACTIVITY_LED) {
         // LED under manual control
         digitalWriteFast(LED_BUILTIN, flags & CFLAG_LED_CONTROL);
