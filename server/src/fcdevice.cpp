@@ -354,7 +354,7 @@ void FCDevice::writeColorCorrection(const Value &color)
     }
 
     // Start asynchronously sending the LUT.
-    submitTransfer(new Transfer(this, &mColorLUT, sizeof mColorLUT));
+    // submitTransfer(new Transfer(this, &mColorLUT, sizeof mColorLUT));
 }
 
 void FCDevice::writeFramebuffer()

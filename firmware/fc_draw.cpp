@@ -58,9 +58,7 @@ static inline void FCP_FN(updateDrawBuffer)(uint8_t *buffer, uint32_t startIndex
 
     residual_t *pResidual = &residual[3 * startIndex];
 
-    for (int j = startIndex; j < endIndex; ++j, pResidual += 3) {
-        int i = j & 63;
-
+    for (int i = startIndex; i < endIndex; ++i, pResidual += 3) {
         // Six output words
         union {
             uint32_t word;

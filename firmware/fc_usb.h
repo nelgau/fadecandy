@@ -125,7 +125,7 @@ struct fcBuffers
 
     fcFramebuffer fb[3];        // Triple-buffered video frames
 
-    fcColorLUT lutNew;                // Partial LUT, not yet finalized
+    //fcColorLUT lutNew;                // Partial LUT, not yet finalized
     static fcLinearLUT lutCurrent;    // Active LUT, linearized for efficiency
 
     uint8_t flags;              // Configuration flags
@@ -135,6 +135,8 @@ struct fcBuffers
         fbPrev = &fb[0];
         fbNext = &fb[1];
         fbNew = &fb[2];
+
+        finalizeLUT();
     }
 
     // Interrupt context

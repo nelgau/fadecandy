@@ -10,11 +10,11 @@
 	"devices": [
 		{
 			"type": "fadecandy",
-			"serial": "VPVVGUQAKUGCWIND",
+			"serial": "NRJBMGHTOQPTDLQH",
 			"dither": true,
 			"interpolate": true,
 			"map": [
-				[ 0, 0, 0, 896, "rbg" ]
+				[ 0, 0, 0, 896 ]
 			]
 		}
 	]

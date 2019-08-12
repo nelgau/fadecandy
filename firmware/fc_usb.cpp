@@ -33,6 +33,7 @@
 #define TYPE_LUT            0x40
 #define TYPE_CONFIG         0x80
 
+#include "fc_lut.h"
 
 void fcBuffers::finalizeFrame()
 {
@@ -92,7 +93,7 @@ bool fcBuffers::handleUSB(usb_packet_t *packet)
             final = index == PACKETS_PER_LUT - 1;
 
             // LUT accesses are not synchronized
-            lutNew.store(index, packet);
+            //lutNew.store(index, packet);
 
             if (final) {
                 // Finalize the LUT on the main thread, it's less async than doing it in the ISR.
@@ -136,6 +137,14 @@ void fcBuffers::finalizeLUT()
      * Note the right shift by 1. See lutInterpolate() for an explanation.
      */
 
+    for (unsigned ch = 0, j = 0, k = 0; ch < 3; ++ch, --k) {
+        for (unsigned i = 0; i < 129; ++i, ++j, k += 2) {
+            lutCurrent.entries[j] = fcLut[i] >> 1;
+        }
+    }
+
+/*    
+
 #if HALFSIZE_LUT
     // Note: This reduces the cardinality of the LUT by half.
     for (unsigned ch = 0, j = 0, k = 0; ch < 3; ++ch, --k) {
@@ -148,4 +157,7 @@ void fcBuffers::finalizeLUT()
         lutCurrent.entries[i] = lutNew.entry(i) >> 1;
     }
 #endif
+
+*/
+
 }
