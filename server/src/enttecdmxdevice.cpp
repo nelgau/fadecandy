@@ -121,7 +121,7 @@ int EnttecDMXDevice::open()
             return r;
         }
 
-        mFoundEnttecStrings = !strcmp(manufacturer, "ENTTEC") && !strcmp(product, "DMX USB PRO");
+        mFoundEnttecStrings = true; //!strcmp(manufacturer, "ENTTEC") && !strcmp(product, "DMX USB PRO");
     }
 
     /*
@@ -303,13 +303,21 @@ void EnttecDMXDevice::opcMapPixelColors(const OPC::Message &msg, const Value &in
             const char *pixelColor = vPixelColor.GetString();
             unsigned dmxChannel = vDMXChannel.GetUint();
 
-            if (channel != msg.channel || pixelIndex >= msgPixelCount) {
+            if (channel != msg.channel) {
+                return;
+            }
+
+            uint8_t value;
+            if (OPC::pickConstant(value, pixelColor[0])) {
+                setChannel(dmxChannel, value);
+                return;
+            }
+
+            if (pixelIndex >= msgPixelCount) {
                 return;
             }
 
             const uint8_t *pixel = msg.data + (pixelIndex * 3);
-            uint8_t value;
-
             if (OPC::pickColorChannel(value, pixelColor[0], pixel)) {
                 setChannel(dmxChannel, value);
                 return;

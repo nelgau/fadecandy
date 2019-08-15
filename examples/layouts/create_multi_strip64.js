@@ -9,8 +9,8 @@ var centerY = 1.5;
 
 var index = 0;
 
-for (var j = 0; j < 4; j++) {
-  for (var i = 0; i < 64; i++) {
+for (var j = 0; j < 8; j++) {
+  for (var i = 0; i < 112; i++) {
       model[index++] = {
           point: [  (i - centerX) * scaleX, 0, (j - centerY) * scaleY ]
       };

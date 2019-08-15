@@ -89,4 +89,21 @@ namespace OPC {
         }
     }
 
+    // Extensions for mapping to constants
+    inline bool pickConstant(uint8_t &output, char selector)
+    {
+        switch (selector) {
+            case '0':
+                output = 0;
+                return true;
+
+            case '1':
+               output = 255;
+               return true;
+
+            default:
+                return false;
+        }
+    }
+
 }
