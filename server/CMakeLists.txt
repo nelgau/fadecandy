@@ -18,6 +18,9 @@ option(WITH_SYSTEMD_SERVICE "Creates an install target for a SystemD service" ON
 option(WITH_SYSTEMD_USER "Run the SystemD service using a special user. Name of the user can be changed using -DFCSERVER_USER=username" ON)
 set(FCSERVER_USER "fcserver" CACHE STRING "The user that is created after a debian package installation if WITH_SYSTEMD_USER is enabled")
 
+# Disable building with SSL
+set(WITH_SSL OFF CACHE BOOL "Include SSL support (default OpenSSL, CyaSSL if USE_CYASSL is set)" FORCE)
+
 # TODO: Enable installing init daemon instead
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
